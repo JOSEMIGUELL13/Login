@@ -1,0 +1,436 @@
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Empresa {
+  id            Int       @id @default(autoincrement())
+  nombre        String
+  direccion     String?
+  direccionFiscal String?
+  rfc          String    @unique
+  razonSocial  String
+  email        String    @unique
+  cp           Int
+  estado       String
+  pais         String
+  telefono     String
+  logo         String?
+
+  // Relations
+  huertas      Huerta[]
+  productos    Producto[]
+  proveedores  Proveedor[]
+  usuarios     Usuario[]
+  empleados    Empleado[]
+  procesosCompra ProcesoCompra[]
+  ordenesCompra OrdenCompra[]
+  clientes     Cliente[]
+  ordenesVenta OrdenVenta[]
+  pagos        Pago[]
+  facturas     Factura[]
+  actividades  Actividad[]
+  almacenes    Almacen[]
+  centrosCosto CentroDeCosto[]
+  itemsGasto   ItemGasto[]
+
+  @@index([rfc])
+  @@map("empresas")
+}
+
+model Huerta {
+  id          Int       @id @default(autoincrement())
+  nombre      String
+  encargado   String
+  estado      String
+  empresaId   Int
+  empresa     Empresa   @relation(fields: [empresaId], references: [id])
+  sectores    Sector[]
+
+  @@index([empresaId])
+  @@map("huertas")
+}
+
+model Actividad {
+  id           Int        @id @default(autoincrement())
+  nombre       String
+  codigo       Int        @unique
+  estado       Boolean    @default(true)
+  itemGastoId  Int
+  empresaId    Int
+  itemGasto    ItemGasto  @relation(fields: [itemGastoId], references: [id])
+  empresa      Empresa    @relation(fields: [empresaId], references: [id])
+  sectores     Sector[]
+
+  @@index([itemGastoId])
+  @@index([empresaId])
+  @@map("actividades")
+}
+
+model CentroDeCosto {
+  id                Int      @id @default(autoincrement())
+  codigoIntegracion Int      @unique
+  estado           Boolean   @default(true)
+  empresaId        Int
+  usuarioId        Int
+  empresa          Empresa   @relation(fields: [empresaId], references: [id])
+  usuario          Usuario   @relation(fields: [usuarioId], references: [id])
+  sectores         Sector[]
+
+  @@index([empresaId])
+  @@index([usuarioId])
+  @@map("centros_costo")
+}
+
+model Sector {
+  id              Int           @id @default(autoincrement())
+  nombre          String
+  zonaRiego       String?
+  actividades     String?
+  fecha           DateTime?
+  superficie      Int
+  estado          String
+  cultivo         String
+  actividadId     Int
+  hurtaId         Int
+  centroCostoId   Int
+  actividad       Actividad     @relation(fields: [actividadId], references: [id])
+  huerta          Huerta        @relation(fields: [hurtaId], references: [id])
+  centroCosto     CentroDeCosto @relation(fields: [centroCostoId], references: [id])
+  empleados       Empleado[]
+
+  @@index([actividadId])
+  @@index([hurtaId])
+  @@index([centroCostoId])
+  @@map("sectores")
+}
+
+model Proveedor {
+  id           Int        @id @default(autoincrement())
+  nombre       String
+  rfc          String     @unique
+  codigo       String     @unique
+  correoPagos  String?
+  numCuenta    String?
+  banco        String?
+  empresaId    Int
+  empresa      Empresa    @relation(fields: [empresaId], references: [id])
+  contactos    Contacto[]
+  productos    Producto[]
+  procesosCompra ProcesoCompra[]
+
+  @@index([empresaId])
+  @@index([rfc])
+  @@map("proveedores")
+}
+
+model Contacto {
+  id            Int       @id @default(autoincrement())
+  proveedorId   Int
+  nombre        String
+  telefono      String
+  email         String?
+  tipoContacto  String
+  proveedor     Proveedor @relation(fields: [proveedorId], references: [id])
+
+  @@index([proveedorId])
+  @@map("contactos")
+}
+
+model Categoria {
+  id              Int        @id @default(autoincrement())
+  nombreCategoria String     @unique
+  tipoCategoria   String
+  productos       Producto[]
+
+  @@map("categorias")
+}
+
+model Producto {
+  id                  Int       @id @default(autoincrement())
+  nombre              String
+  codigo              String    @unique
+  unidad              String
+  esAgroquimico       Boolean   @default(false)
+  inactivo           Boolean   @default(false)
+  ingredientesActivos String?   @db.Text
+  categoriaId         Int
+  proveedorId         Int
+  empresaId           Int
+  categoria           Categoria @relation(fields: [categoriaId], references: [id])
+  proveedor           Proveedor @relation(fields: [proveedorId], references: [id])
+  empresa             Empresa   @relation(fields: [empresaId], references: [id])
+  ordenesCompra       OrdenCompra[]
+  inventarios         Inventario[]
+  movimientosInventario MovimientoInventario[]
+  detallesOrdenVenta DetalleOrdenVenta[]
+
+  @@index([categoriaId])
+  @@index([proveedorId])
+  @@index([empresaId])
+  @@map("productos")
+}
+
+model ProcesoCompra {
+  id            Int           @id @default(autoincrement())
+  fechaCompra   DateTime
+  proveedorId   Int
+  statusPago    String
+  centroNegocios String?
+  empresaId     Int
+  proveedor     Proveedor     @relation(fields: [proveedorId], references: [id])
+  empresa       Empresa       @relation(fields: [empresaId], references: [id])
+  ordenesCompra OrdenCompra[]
+  pagos         Pago[]
+
+  @@index([proveedorId])
+  @@index([empresaId])
+  @@map("procesos_compra")
+}
+
+model OrdenCompra {
+  id              Int           @id @default(autoincrement())
+  compraId        Int
+  productoId      Int
+  cantidad        Decimal       @db.Decimal(10,2)
+  precioUnitario  Decimal       @db.Decimal(10,2)
+  empresaId       Int
+  procesoCompra   ProcesoCompra @relation(fields: [compraId], references: [id])
+  producto        Producto      @relation(fields: [productoId], references: [id])
+  empresa         Empresa       @relation(fields: [empresaId], references: [id])
+
+  @@index([compraId])
+  @@index([productoId])
+  @@index([empresaId])
+  @@map("ordenes_compra")
+}
+
+model Inventario {
+  id              Int      @id @default(autoincrement())
+  productoId      Int
+  almacenId       Int
+  cantidadActual  Decimal  @db.Decimal(10,2)
+  producto        Producto @relation(fields: [productoId], references: [id])
+  almacen         Almacen  @relation(fields: [almacenId], references: [id])
+
+  @@unique([productoId, almacenId])
+  @@index([productoId])
+  @@index([almacenId])
+  @@map("inventarios")
+}
+
+model MovimientoInventario {
+  id              Int      @id @default(autoincrement())
+  productoId      Int
+  almacenId       Int
+  cantidad        Decimal  @db.Decimal(10,2)
+  tipoMovimiento  String
+  fecha           DateTime @default(now())
+  descripcion     String?  @db.Text
+  producto        Producto @relation(fields: [productoId], references: [id])
+  almacen         Almacen  @relation(fields: [almacenId], references: [id])
+
+  @@index([productoId])
+  @@index([almacenId])
+  @@index([fecha])
+  @@map("movimientos_inventario")
+}
+
+model Usuario {
+  id          Int       @id @default(autoincrement())
+  nombre      String
+  email       String    @unique
+  contrasena  String
+  empresaId   Int
+  empresa     Empresa   @relation(fields: [empresaId], references: [id])
+  roles       UsuarioRol[]
+  auditorias  Auditoria[]
+  centrosCosto CentroDeCosto[]
+
+  @@index([empresaId])
+  @@map("usuarios")
+}
+
+model Rol {
+  id          Int            @id @default(autoincrement())
+  nombreRol   String         @unique
+  permisos    RolPermiso[]
+  usuarios    UsuarioRol[]
+
+  @@map("roles")
+}
+
+model Permiso {
+  id          Int          @id @default(autoincrement())
+  descripcion String       @unique
+  roles       RolPermiso[]
+
+  @@map("permisos")
+}
+
+model RolPermiso {
+  rolId      Int
+  permisoId  Int
+  rol        Rol      @relation(fields: [rolId], references: [id])
+  permiso    Permiso  @relation(fields: [permisoId], references: [id])
+
+  @@id([rolId, permisoId])
+  @@map("roles_permisos")
+  @@index([permisoId])
+}
+
+model UsuarioRol {
+  usuarioId  Int
+  rolId      Int
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id])
+  rol        Rol      @relation(fields: [rolId], references: [id])
+
+  @@id([usuarioId, rolId])
+  @@map("usuarios_roles")
+  @@index([rolId])
+}
+
+model Empleado {
+  id                Int       @id @default(autoincrement())
+  nombre           String
+  fechaNacimiento  DateTime?
+  puesto           String
+  salario          Decimal   @db.Decimal(10,2)
+  activo           Boolean   @default(true)
+  fechaContratacion DateTime
+  fechaTermino     DateTime?
+  urlContrato      String?
+  empresaId        Int
+  sectorId         Int
+  empresa          Empresa   @relation(fields: [empresaId], references: [id])
+  sector           Sector    @relation(fields: [sectorId], references: [id])
+
+  @@index([empresaId])
+  @@index([sectorId])
+  @@map("empleados")
+}
+
+model ItemGasto {
+  id          Int         @id @default(autoincrement())
+  actividad   String
+  codigo      String      @unique
+  estado      String
+  empresaId   Int
+  empresa     Empresa     @relation(fields: [empresaId], references: [id])
+  actividades Actividad[]
+
+  @@index([empresaId])
+  @@map("items_gasto")
+}
+
+model Almacen {
+  id              Int       @id @default(autoincrement())
+  codigo          String    @unique
+  nombreBodega    String
+  costea         String
+  inventario     Boolean   @default(true)
+  bodegaPetroleo Boolean   @default(false)
+  estado         String
+  empresaId      Int
+  empresa        Empresa   @relation(fields: [empresaId], references: [id])
+  inventarios    Inventario[]
+  movimientos    MovimientoInventario[]
+
+  @@index([empresaId])
+  @@map("almacenes")
+}
+
+model Cliente {
+  id          Int           @id @default(autoincrement())
+  nombre      String
+  rfc         String        @unique
+  telefono    String?
+  direccion   String?
+  email       String?
+  empresaId   Int
+  empresa     Empresa       @relation(fields: [empresaId], references: [id])
+  ordenesVenta OrdenVenta[]
+
+  @@index([empresaId])
+  @@index([rfc])
+  @@map("clientes")
+}
+
+model OrdenVenta {
+  id          Int                  @id @default(autoincrement())
+  clienteId   Int
+  fechaVenta  DateTime
+  statusPago  String
+  total       Decimal             @db.Decimal(10,2)
+  empresaId   Int
+  cliente     Cliente             @relation(fields: [clienteId], references: [id])
+  empresa     Empresa             @relation(fields: [empresaId], references: [id])
+  detalles    DetalleOrdenVenta[]
+  facturas    Factura[]
+
+  @@index([clienteId])
+  @@index([empresaId])
+  @@map("ordenes_venta")
+}
+
+model DetalleOrdenVenta {
+  id              Int        @id @default(autoincrement())
+  ordenVentaId    Int
+  productoId      Int
+  cantidad        Decimal    @db.Decimal(10,2)
+  precioUnitario  Decimal    @db.Decimal(10,2)
+  ordenVenta      OrdenVenta @relation(fields: [ordenVentaId], references: [id])
+  producto        Producto   @relation(fields: [productoId], references: [id])
+
+  @@index([ordenVentaId])
+  @@index([productoId])
+  @@map("detalles_orden_venta")
+}
+
+model Pago {
+  id          Int           @id @default(autoincrement())
+  compraId    Int
+  fechaPago   DateTime
+  monto       Decimal       @db.Decimal(10,2)
+  metodoPago  String
+  empresaId   Int
+  compra      ProcesoCompra @relation(fields: [compraId], references: [id])
+  empresa     Empresa       @relation(fields: [empresaId], references: [id])
+
+  @@index([compraId])
+  @@index([empresaId])
+  @@map("pagos")
+}
+
+model Factura {
+  id            Int         @id @default(autoincrement())
+  ordenVentaId  Int
+  fechaFactura  DateTime
+  total         Decimal     @db.Decimal(10,2)
+  estado        String
+  empresaId     Int
+  ordenVenta    OrdenVenta  @relation(fields: [ordenVentaId], references: [id])
+  empresa       Empresa     @relation(fields: [empresaId], references: [id])
+
+  @@index([ordenVentaId])
+  @@index([empresaId])
+  @@map("facturas")
+}
+
+model Auditoria {
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int
+  fechaHora   DateTime @default(now())
+  accion      String
+  descripcion String?  @db.Text
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@index([fechaHora])
+  @@map("auditoria")
+}
