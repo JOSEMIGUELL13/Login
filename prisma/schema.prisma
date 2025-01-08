@@ -242,15 +242,18 @@ model MovimientoInventario {
 }
 
 model Usuario {
-  id          Int       @id @default(autoincrement())
-  nombre      String
-  email       String    @unique
-  contrasena  String
-  empresaId   Int
-  empresa     Empresa   @relation(fields: [empresaId], references: [id])
-  roles       UsuarioRol[]
-  auditorias  Auditoria[]
+  id           Int          @id @default(autoincrement())
+  nombre       String
+  email        String       @unique
+  contrasena   String
+  empresaId    Int
+  empresa      Empresa      @relation(fields: [empresaId], references: [id])
+  roles        UsuarioRol[]
+  auditorias   Auditoria[]
   centrosCosto CentroDeCosto[]
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@index([empresaId])
   @@map("usuarios")
